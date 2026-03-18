@@ -1,0 +1,59 @@
+version: "3.9"
+
+# ============================================================
+# Grass Desktop App — Docker Compose (Portainer-ready)
+# ============================================================
+
+services:
+  grass:
+    image: grass-vnc:latest          # Tag used after: docker build -t grass-vnc .
+    container_name: grass
+
+    # ── Build locally (on your dev machine with the .deb file) ──
+    # Uncomment the block below if deploying straight from source:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+
+    restart: unless-stopped
+
+    environment:
+      - VNC_RESOLUTION=1280x800      # Adjust to your preference
+      - VNC_COL_DEPTH=24
+      - TZ=Europe/Paris              # Match your timezone
+
+    ports:
+      - "5901:5901"   # VNC — connect with any VNC client (RealVNC, TigerVNC Viewer…)
+      - "6080:6080"   # noVNC — open http://<your-mac-ip>:6080/vnc.html in a browser
+
+    volumes:
+      # Persist Grass app data (login session, config) across container restarts
+      - grass_data:/home/grassuser/.config
+      - grass_data:/home/grassuser/.local
+
+    shm_size: "256mb"               # Electron / Chromium-based apps need this
+
+    # Required for GUI apps running inside Docker
+    security_opt:
+      - seccomp:unconfined           # Needed by some Electron internals
+
+    # Uncomment if the app needs GPU acceleration (e.g. WebGL)
+    # devices:
+    #   - /dev/dri:/dev/dri
+
+    healthcheck:
+      test: ["CMD", "bash", "-c", "netstat -tnlp 2>/dev/null | grep -q 5901"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  grass_data:
+    driver: local
+
+# ── Networks (Portainer default bridge is fine, or use your own) ──
+# networks:
+#   default:
+#     external: true
+#     name: your_portainer_network
